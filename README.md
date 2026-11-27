@@ -4,7 +4,7 @@ Prototipo de interfaz y flujos para la gestión de convivencias familiares con a
 
 PACTO explora cómo organizar digitalmente una convivencia familiar, registrar sus eventos, canalizar incidencias y facilitar la consulta de información por personal autorizado. El objetivo planteado en la presentación del proyecto es apoyar la operación de la justicia familiar y reducir la presión sobre la infraestructura presencial cuando la autoridad determine que una modalidad extramuros es apropiada.
 
-Estado del repositorio: prototipo de aplicación web/PWA, no sistema judicial certificado ni solución lista para operar con expedientes reales. Algunas pantallas implementan flujos y cálculos; otras simulan controles o muestran garantías que el código todavía no demuestra. La autoridad conserva la decisión y la valoración del caso.
+**Estado del repositorio: prototipo de aplicación web/PWA, no sistema judicial certificado ni solución lista para operar con expedientes reales. Algunas pantallas implementan flujos y cálculos; otras simulan controles o muestran garantías que el código todavía no demuestra. La autoridad conserva la decisión y la valoración del caso.**
 
 ## 1. ¿Qué problema busca atender?
 
@@ -111,7 +111,7 @@ Consecuencias importantes:
 · El servidor usa el identificador de modelo gemini-4-hydrogen; su disponibilidad y comportamiento no fueron verificados.
 · POST /api/analyze-context no contiene autenticación o autorización explícitas en server.ts; deben añadirse controles apropiados antes de exponerlo.
 
-No se deben cargar fotografías, expedientes ni datos de niñas, niños o familias reales para probar este prototipo sin un entorno autorizado, análisis jurídico y medidas de seguridad verificadas.
+### ****No se deben cargar fotografías, expedientes ni datos de niñas, niños o familias reales para probar este prototipo sin un entorno autorizado, análisis jurídico y medidas de seguridad verificadas.****
 
 ## 7. Operación sin conexión
 
@@ -195,13 +195,14 @@ Si prefieres npm, el proyecto también declara scripts compatibles con npm (npm 
 
 Variables y servicios
 
->``
+``
 Variable Uso observado
-GEMINI_API_KEY Clave usada por el servidor para solicitar el análisis contextual de imagen. Configúrala solo en el entorno servidor; no la publiques.
-APP_URL Figura en .env.example, pero en el código revisado no se observó su uso operativo.
-PORT Puerto de Express; si no se establece, usa 3000.
-NODE_ENV Selecciona middleware Vite fuera de producción o archivos estáticos de dist en producción.
-DISABLE_HMR Permite desactivar HMR en la configuración de Vite.
+>
+>GEMINI_API_KEY Clave usada por el servidor para solicitar el análisis contextual de imagen. Configúrala solo en el entorno servidor; no la publiques.
+>APP_URL Figura en .env.example, pero en el código revisado no se observó su uso operativo.
+>PORT Puerto de Express; si no se establece, usa 3000.
+>NODE_ENV Selecciona middleware Vite fuera de producción o archivos estáticos de dist en producción.
+>DISABLE_HMR Permite desactivar HMR en la configuración de Vite.
 >``
 La configuración cliente Firebase está en firebase-applet-config.json: apunta actualmente a un proyecto concreto. Para una instalación independiente, sustitúyela por la configuración del entorno autorizado y revisa reglas, índices, acceso y dominios. No apuntes pruebas a una base productiva existente.
 
@@ -219,8 +220,8 @@ El build definido solo invoca Vite; no declara una compilación separada de serv
 
 Rutas del servidor
 ```
-· GET /api/health: devuelve estado básico del proceso Express; no verifica Firebase ni servicios externos.
-· POST /api/analyze-context: recibe imagen base64 y metadatos para pedir un análisis a Gemini. Requiere clave y conexión externa; no tiene autenticación explícita en el archivo revisado.
+>· GET /api/health: devuelve estado básico del proceso Express; no verifica Firebase ni servicios externos.
+>· POST /api/analyze-context: recibe imagen base64 y metadatos para pedir un análisis a Gemini. Requiere clave y conexión externa; no tiene autenticación explícita en el archivo revisado.
 ```
 ## 11. Pruebas y validación
 
@@ -229,14 +230,14 @@ security_spec.md describe doce escenarios adversariales. firestore.rules.test.ts
 Antes de tratar el sistema como piloto operativo, se recomienda:
 
 ```
-1. Implementar y ejecutar pruebas automatizadas de reglas con el emulador Firestore, incluyendo lecturas, consultas, escrituras, restricciones por sede, roles y casos cerrados.
-2. Probar los flujos de varios usuarios con cuentas distintas: creación judicial del expediente, asignación a cada parte, acceso por folio y revocación. La consulta de sesiones de usuarios no privilegiados filtra por ownerId; crear un expediente como juez no demuestra que las otras partes puedan acceder con sus propias cuentas.
-3. Construir y probar una verificación reproducible de la cadena de auditoría y de cada evento, con datos completos, orden y referencias confiables: ensayar alteraciones, eliminaciones y concurrencia.
-4. Revisar el aislamiento real de S-ADMIN y juez, incluyendo el hecho de que K-JUEZ se almacena en el documento de convivencia y se compara en el cliente.
-5. Implementar controles de autenticación, autorización, límites de uso y validación del contenido para la API de imagen, evaluar el flujo de datos y el proveedor externo.
-6. Validar accesibilidad, experiencia en dispositivos móviles, pérdida de conexión, sincronización y borrado local con dispositivos y navegadores reales.
-7. Revisar legalidad, proporcionalidad y seguridad infantil de cualquier geolocalización, captura multimedia, clasificación o alerta, y establecer supervisión y posibilidad de revisión humana.
-8. Realizar auditoría de seguridad y privacidad independiente antes de procesar información sensible. Ninguna captura de pantalla o resultado simulado sustituye esa validación.
+***1. Implementar y ejecutar pruebas automatizadas de reglas con el emulador Firestore, incluyendo lecturas, consultas, escrituras, restricciones por sede, roles y casos cerrados.***
+***2. Probar los flujos de varios usuarios con cuentas distintas: creación judicial del expediente, asignación a cada parte, acceso por folio y revocación. La consulta de sesiones de usuarios no privilegiados filtra por ownerId; crear un expediente como juez no demuestra que las otras partes puedan acceder con sus propias cuentas.***
+***3. Construir y probar una verificación reproducible de la cadena de auditoría y de cada evento, con datos completos, orden y referencias confiables: ensayar alteraciones, eliminaciones y concurrencia.***
+***4. Revisar el aislamiento real de S-ADMIN y juez, incluyendo el hecho de que K-JUEZ se almacena en el documento de convivencia y se compara en el cliente.***
+**"5. Implementar controles de autenticación, autorización, límites de uso y validación del contenido para la API de imagen, evaluar el flujo de datos y el proveedor externo.***
+***6. Validar accesibilidad, experiencia en dispositivos móviles, pérdida de conexión, sincronización y borrado local con dispositivos y navegadores reales.**"
+***7. Revisar legalidad, proporcionalidad y seguridad infantil de cualquier geolocalización, captura multimedia, clasificación o alerta, y establecer supervisión y posibilidad de revisión humana.**"
+***8. Realizar auditoría de seguridad y privacidad independiente antes de procesar información sensible. Ninguna captura de pantalla o resultado simulado sustituye esa validación.***
 >
 ```
 ## 12. Relación con la propuesta conceptual
