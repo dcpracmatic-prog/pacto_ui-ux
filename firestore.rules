@@ -1,0 +1,524 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function hasAssignedRole(roleName) {
+      return isEmailVerified() &&
+        exists(/databases/$(database)/documents/role_assignments/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/role_assignments/$(request.auth.uid)).data.active == true &&
+        get(/databases/$(database)/documents/role_assignments/$(request.auth.uid)).data.role == roleName;
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (
+        request.auth.token.email == 'dcpracmatic@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        hasAssignedRole('ADMIN')
+      );
+    }
+
+    function isAuditor() {
+      return isEmailVerified() && (
+        exists(/databases/$(database)/documents/auditors/$(request.auth.uid)) ||
+        hasAssignedRole('AUDITOR')
+      );
+    }
+
+    function isJudge() {
+      return hasAssignedRole('JUEZ');
+    }
+
+    function isMonitorista() {
+      return hasAssignedRole('MONITORISTA');
+    }
+
+    function isOperationalStaff() {
+      return isJudge() || isMonitorista();
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'activeViewRole', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'activeViewRole', 'createdAt', 'updatedAt'])
+        && data.uid is string && isValidId(data.uid) && data.uid == request.auth.uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120
+        && data.activeViewRole in ['JUEZ', 'MONITORISTA', 'CUSTODIO', 'CONVIVIENTE', 'AUDITOR', 'ADMIN']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRoleAssignment(data) {
+      return data.keys().hasAll([
+          'targetUid', 'targetEmail', 'role', 'cecofamSede', 'active', 'assignedByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'targetUid', 'targetEmail', 'role', 'cecofamSede', 'active', 'assignedByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.targetUid is string && isValidId(data.targetUid)
+        && data.targetEmail is string && data.targetEmail.size() >= 3 && data.targetEmail.size() <= 160
+        && data.role in ['REPORTERO', 'MONITORISTA', 'JUEZ', 'AUDITOR', 'ADMIN']
+        && data.cecofamSede in ['Ecatepec', 'Toluca', 'Nicolás Romero', 'Ixtapaluca', 'TODAS']
+        && data.active is bool
+        && data.assignedByUid is string && isValidId(data.assignedByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAuditorRegistry(data) {
+      return data.keys().hasAll(['uid', 'email', 'active', 'grantedByUid', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'active', 'grantedByUid', 'createdAt'])
+        && data.uid is string && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.active is bool
+        && data.grantedByUid is string && isValidId(data.grantedByUid)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidProtocolConfig(data) {
+      return data.keys().hasAll([
+          'version', 'cecofamSede', 'maxUavBudget', 'gpsLossThresholdSec',
+          't5mWindowSec', 'fBlurRadiusPx', 'accessibilityMode', 'active',
+          'updatedByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'version', 'cecofamSede', 'maxUavBudget', 'gpsLossThresholdSec',
+          't5mWindowSec', 'fBlurRadiusPx', 'accessibilityMode', 'active',
+          'updatedByUid', 'createdAt', 'updatedAt'
+        ])
+        && data.version is string && data.version.size() >= 2 && data.version.size() <= 32
+        && data.cecofamSede in ['Ecatepec', 'Toluca', 'Nicolás Romero', 'Ixtapaluca', 'GLOBAL']
+        && data.maxUavBudget is int && data.maxUavBudget >= 1 && data.maxUavBudget <= 32
+        && data.gpsLossThresholdSec is int && data.gpsLossThresholdSec >= 300 && data.gpsLossThresholdSec <= 3600
+        && data.t5mWindowSec is int && data.t5mWindowSec >= 120 && data.t5mWindowSec <= 900
+        && data.fBlurRadiusPx is int && data.fBlurRadiusPx >= 25 && data.fBlurRadiusPx <= 80
+        && data.accessibilityMode is string && data.accessibilityMode.size() >= 3 && data.accessibilityMode.size() <= 120
+        && data.active is bool
+        && data.updatedByUid is string && isValidId(data.updatedByUid)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidIncidentReport(data) {
+      return data.keys().hasAll([
+          'reporterId', 'convivenciaId', 'folioFisico', 'cecofamSede', 'category',
+          'severity', 'status', 'title', 'description', 'evidenceHash',
+          'resolutionNote', 'assignedAdminUid', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'reporterId', 'convivenciaId', 'folioFisico', 'cecofamSede', 'category',
+          'severity', 'status', 'title', 'description', 'evidenceHash',
+          'resolutionNote', 'assignedAdminUid', 'createdAt', 'updatedAt'
+        ])
+        && data.reporterId is string && isValidId(data.reporterId)
+        && data.convivenciaId is string && isValidId(data.convivenciaId)
+        && data.folioFisico is string && data.folioFisico.size() == 8 && data.folioFisico.matches('^[0-9]{8}$')
+        && data.cecofamSede in ['Ecatepec', 'Toluca', 'Nicolás Romero', 'Ixtapaluca']
+        && data.category in ['ACCESIBILIDAD_TECNICA', 'DESVIACION_GEOCERCA', 'FALLO_BIOMETRICO_RAM', 'HOSTILIDAD_PROXY', 'EMERGENCIA_C5']
+        && data.severity in ['BAJA', 'MEDIA', 'ALTA', 'CRITICA']
+        && data.status in ['REPORTADO', 'EN_REVISION', 'RESUELTO', 'CERRADO_AUDITADO']
+        && data.title is string && data.title.size() >= 4 && data.title.size() <= 120
+        && data.description is string && data.description.size() >= 8 && data.description.size() <= 800
+        && data.evidenceHash is string && data.evidenceHash.size() >= 32 && data.evidenceHash.size() <= 128
+        && data.resolutionNote is string && data.resolutionNote.size() <= 500
+        && data.assignedAdminUid is string && data.assignedAdminUid.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidConvivencia(data) {
+      return data.keys().hasAll([
+          'ownerId', 'folioFisico', 'folioHash', 'kJuez', 'cecofamSede',
+          'fsmState', 'semaphore', 'uavCost', 'ageGroup', 'iArrScore',
+          'exclusionsClear', 'ccpSigned', 'tviVerified', 'tavVerified',
+          't5mStartMs', 'durationMinutes', 'lat', 'lng', 'signalDbm',
+          'batteryPct', 'inShadowZone', 'rpaAlertActive', 'gpsLossSeconds',
+          'chatAttempts', 'pvBlaFailures', 'prcActivated', 'minorClothingDesc',
+          'vehicleDesc', 'closingNote', 'sealHash', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'folioFisico', 'folioHash', 'kJuez', 'cecofamSede',
+          'fsmState', 'semaphore', 'uavCost', 'ageGroup', 'iArrScore',
+          'exclusionsClear', 'ccpSigned', 'tviVerified', 'tavVerified',
+          't5mStartMs', 'durationMinutes', 'lat', 'lng', 'signalDbm',
+          'batteryPct', 'inShadowZone', 'rpaAlertActive', 'gpsLossSeconds',
+          'chatAttempts', 'pvBlaFailures', 'prcActivated', 'minorClothingDesc',
+          'vehicleDesc', 'closingNote', 'sealHash', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.folioFisico is string && data.folioFisico.size() == 8 && data.folioFisico.matches('^[0-9]{8}$')
+        && data.folioHash is string && data.folioHash.size() == 64 && data.folioHash.matches('^[a-fA-F0-9]{64}$')
+        && data.kJuez is string && data.kJuez.size() == 5 && data.kJuez.matches('^[A-Z0-9]{5}$')
+        && data.cecofamSede in ['Ecatepec', 'Toluca', 'Nicolás Romero', 'Ixtapaluca']
+        && data.fsmState in ['STATE_0_INGESTA', 'STATE_1_ONBOARDING', 'STATE_1_TIMEOUT', 'STATE_2_ACTIVE', 'STATE_3_TRIAGE', 'STATE_4_CLOSED']
+        && data.semaphore in ['VERDE', 'AMARILLO', 'ROJO', 'PRC']
+        && data.uavCost is int && data.uavCost >= 0 && data.uavCost <= 8
+        && data.ageGroup in ['PRIMERA_INFANCIA', 'ESCOLAR', 'ADOLESCENTE']
+        && (data.iArrScore is number || data.iArrScore is int) && data.iArrScore >= 0 && data.iArrScore <= 100
+        && data.exclusionsClear is bool
+        && data.ccpSigned is bool
+        && data.tviVerified is bool
+        && data.tavVerified is bool
+        && data.t5mStartMs is int && data.t5mStartMs >= 0
+        && data.durationMinutes is int && data.durationMinutes >= 30 && data.durationMinutes <= 720
+        && (data.lat is number || data.lat is int) && data.lat >= -90 && data.lat <= 90
+        && (data.lng is number || data.lng is int) && data.lng >= -180 && data.lng <= 180
+        && data.signalDbm is int && data.signalDbm >= -140 && data.signalDbm <= -30
+        && data.batteryPct is int && data.batteryPct >= 0 && data.batteryPct <= 100
+        && data.inShadowZone is bool
+        && data.rpaAlertActive is bool
+        && data.gpsLossSeconds is int && data.gpsLossSeconds >= 0 && data.gpsLossSeconds <= 86400
+        && data.chatAttempts is int && data.chatAttempts >= 0 && data.chatAttempts <= 100
+        && data.pvBlaFailures is int && data.pvBlaFailures >= 0 && data.pvBlaFailures <= 50
+        && data.prcActivated is bool
+        && data.minorClothingDesc is string && data.minorClothingDesc.size() <= 240
+        && data.vehicleDesc is string && data.vehicleDesc.size() <= 160
+        && data.closingNote is string && data.closingNote.size() <= 500
+        && data.sealHash is string && data.sealHash.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEvento(data) {
+      return data.keys().hasAll(['ownerId', 'category', 'eventType', 'summary', 'hashSha3', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'category', 'eventType', 'summary', 'hashSha3', 'createdAt'])
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.category in ['MORADO', 'AZUL_CLARO', 'CREMA']
+        && data.eventType is string && data.eventType.size() >= 2 && data.eventType.size() <= 80
+        && data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 600
+        && data.hashSha3 is string && data.hashSha3.size() >= 32 && data.hashSha3.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMensaje(data) {
+      return data.keys().hasAll(['ownerId', 'senderRole', 'rawPreview', 'cleanContent', 'status', 'hostileTokensCount', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'senderRole', 'rawPreview', 'cleanContent', 'status', 'hostileTokensCount', 'createdAt'])
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.senderRole in ['CUSTODIO', 'CONVIVIENTE', 'MONITORISTA']
+        && data.rawPreview is string && data.rawPreview.size() >= 1 && data.rawPreview.size() <= 400
+        && data.cleanContent is string && data.cleanContent.size() <= 400
+        && data.status in ['RECHAZADO_HOSTIL', 'SANITIZADO_RETRANSMITIDO', 'LOGISTICO_LIMPIO']
+        && data.hostileTokensCount is int && data.hostileTokensCount >= 0 && data.hostileTokensCount <= 100
+        && data.createdAt is timestamp;
+    }
+
+    function isValidNotariaCsg(data) {
+      return data.keys().hasAll([
+          'ownerId', 'folioFisico', 'sourceType', 'sourceRefId', 'sourceTitle',
+          'docUrl', 'eventoId', 'hashContenido', 'cuerpoHash', 'selloAnterior',
+          'firmantePub', 'notarioPub', 'firmaNotario', 'aceptado', 'csgTimestamp',
+          'actorRole', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'folioFisico', 'sourceType', 'sourceRefId', 'sourceTitle',
+          'docUrl', 'eventoId', 'hashContenido', 'cuerpoHash', 'selloAnterior',
+          'firmantePub', 'notarioPub', 'firmaNotario', 'aceptado', 'csgTimestamp',
+          'actorRole', 'createdAt'
+        ])
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.folioFisico is string && data.folioFisico.size() == 8 && data.folioFisico.matches('^[0-9]{8}$')
+        && data.sourceType in ['GOOGLE_DOC', 'GOOGLE_TASK_ACTA', 'ARCHIVO_LOCAL']
+        && data.sourceRefId is string && data.sourceRefId.size() >= 1 && data.sourceRefId.size() <= 200
+        && data.sourceTitle is string && data.sourceTitle.size() >= 1 && data.sourceTitle.size() <= 180
+        && data.docUrl is string && data.docUrl.size() <= 400
+        && data.eventoId is string && data.eventoId.size() >= 4 && data.eventoId.size() <= 128
+        && data.hashContenido is string && data.hashContenido.size() == 64 && data.hashContenido.matches('^[a-fA-F0-9]{64}$')
+        && data.cuerpoHash is string && data.cuerpoHash.size() == 64 && data.cuerpoHash.matches('^[a-fA-F0-9]{64}$')
+        && data.selloAnterior is string && data.selloAnterior.size() == 64 && data.selloAnterior.matches('^[a-fA-F0-9]{64}$')
+        && data.firmantePub is string && data.firmantePub.size() == 64 && data.firmantePub.matches('^[a-fA-F0-9]{64}$')
+        && data.notarioPub is string && data.notarioPub.size() == 64 && data.notarioPub.matches('^[a-fA-F0-9]{64}$')
+        && data.firmaNotario is string && data.firmaNotario.size() == 128 && data.firmaNotario.matches('^[a-fA-F0-9]{128}$')
+        && data.aceptado is bool
+        && data.csgTimestamp is int && data.csgTimestamp >= 0
+        && data.actorRole is string && data.actorRole.size() >= 2 && data.actorRole.size() <= 40
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLogWorm(data) {
+      return data.keys().hasAll(['ownerId', 'actorRole', 'folioFisico', 'action', 'justification', 'prevHash', 'currentHash', 'createdAt'])
+        && data.keys().hasOnly(['ownerId', 'actorRole', 'folioFisico', 'action', 'justification', 'prevHash', 'currentHash', 'createdAt'])
+        && data.ownerId is string && isValidId(data.ownerId)
+        && data.actorRole is string && data.actorRole.size() >= 2 && data.actorRole.size() <= 40
+        && data.folioFisico is string && data.folioFisico.size() == 8 && data.folioFisico.matches('^[0-9]{8}$')
+        && data.action is string && data.action.size() >= 2 && data.action.size() <= 120
+        && data.justification is string && data.justification.size() >= 4 && data.justification.size() <= 300
+        && data.prevHash is string && data.prevHash.size() >= 16 && data.prevHash.size() <= 128
+        && data.currentHash is string && data.currentHash.size() >= 32 && data.currentHash.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isEmailVerified() && isValidId(userId) && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isEmailVerified() && isValidId(userId) && (isOwner(userId) || isAdmin())
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'activeViewRole', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    match /auditors/{auditorId} {
+      allow get: if isValidId(auditorId) && (isOwner(auditorId) || isAdmin() || isAuditor());
+      allow list: if isAdmin() || isAuditor();
+      allow create: if isAdmin() && isValidId(auditorId)
+        && isValidAuditorRegistry(incoming())
+        && incoming().uid == auditorId
+        && incoming().grantedByUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin() && isValidId(auditorId)
+        && isValidAuditorRegistry(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().grantedByUid == existing().grantedByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['active']);
+      allow delete: if isAdmin() && isValidId(auditorId);
+    }
+
+    match /role_assignments/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin() || isAuditor());
+      allow list: if isSignedIn() && (resource.data.targetUid == request.auth.uid || isAdmin() || isAuditor());
+      allow create: if isAdmin() && isValidId(userId)
+        && isValidRoleAssignment(incoming())
+        && incoming().targetUid == userId
+        && incoming().assignedByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(userId)
+        && isValidRoleAssignment(incoming())
+        && incoming().targetUid == existing().targetUid
+        && incoming().targetEmail == existing().targetEmail
+        && incoming().createdAt == existing().createdAt
+        && incoming().assignedByUid == request.auth.uid
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'cecofamSede', 'active', 'assignedByUid', 'updatedAt']);
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    match /protocol_configs/{configId} {
+      allow get: if isEmailVerified() && isValidId(configId);
+      allow list: if isEmailVerified() && (resource.data.active == true || isAdmin() || isAuditor());
+      allow create: if isAdmin() && isValidId(configId)
+        && isValidProtocolConfig(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(configId)
+        && isValidProtocolConfig(incoming())
+        && incoming().updatedByUid == request.auth.uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'version', 'cecofamSede', 'maxUavBudget', 'gpsLossThresholdSec',
+          't5mWindowSec', 'fBlurRadiusPx', 'accessibilityMode', 'active',
+          'updatedByUid', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(configId);
+    }
+
+    match /incidentes/{incidenteId} {
+      allow get: if isSignedIn() && isValidId(incidenteId) && (
+        existing().reporterId == request.auth.uid || isAdmin() || isAuditor()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.reporterId == request.auth.uid || isAdmin() || isAuditor()
+      );
+      allow create: if isEmailVerified() && isValidId(incidenteId)
+        && !isAuditor()
+        && isValidIncidentReport(incoming())
+        && incoming().reporterId == request.auth.uid
+        && incoming().status == 'REPORTADO'
+        && incoming().resolutionNote == ''
+        && incoming().assignedAdminUid == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/convivencias/$(incoming().convivenciaId));
+      allow update: if isEmailVerified() && isValidId(incidenteId)
+        && !isAuditor()
+        && isValidIncidentReport(incoming())
+        && existing().status != 'CERRADO_AUDITADO'
+        && incoming().reporterId == existing().reporterId
+        && incoming().convivenciaId == existing().convivenciaId
+        && incoming().folioFisico == existing().folioFisico
+        && incoming().cecofamSede == existing().cecofamSede
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (
+            isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'severity', 'status', 'resolutionNote', 'assignedAdminUid', 'updatedAt'
+            ])
+          ) || (
+            existing().reporterId == request.auth.uid
+            && existing().status == 'REPORTADO'
+            && incoming().status == 'REPORTADO'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'description', 'evidenceHash', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if false;
+    }
+
+    match /convivencias/{convivenciaId} {
+      allow get: if isSignedIn() && isValidId(convivenciaId) && (
+        existing().ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+      );
+      allow create: if isEmailVerified() && isValidId(convivenciaId)
+        && !isAuditor()
+        && isValidConvivencia(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isEmailVerified() && isValidId(convivenciaId)
+        && !isAuditor()
+        && isValidConvivencia(incoming())
+        && (existing().ownerId == request.auth.uid || isAdmin() || isOperationalStaff())
+        && (existing().fsmState != 'STATE_4_CLOSED' || isAdmin())
+        && incoming().ownerId == existing().ownerId
+        && incoming().folioFisico == existing().folioFisico
+        && incoming().folioHash == existing().folioHash
+        && incoming().kJuez == existing().kJuez
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'fsmState', 'ccpSigned', 'tviVerified', 'tavVerified', 't5mStartMs',
+              'minorClothingDesc', 'vehicleDesc', 'updatedAt'
+            ])
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'fsmState', 'semaphore', 'uavCost', 'lat', 'lng', 'signalDbm',
+              'batteryPct', 'inShadowZone', 'rpaAlertActive', 'gpsLossSeconds',
+              'chatAttempts', 'pvBlaFailures', 'prcActivated', 'tavVerified',
+              'tviVerified', 'updatedAt'
+            ])
+          ) ||
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'fsmState', 'semaphore', 'uavCost', 'closingNote', 'sealHash', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(convivenciaId);
+
+      match /eventos/{eventoId} {
+        allow get: if isSignedIn() && isValidId(convivenciaId) && isValidId(eventoId) && (
+          get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow list: if isSignedIn() && isValidId(convivenciaId) && (
+          resource.data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow create: if isEmailVerified() && isValidId(convivenciaId) && isValidId(eventoId)
+          && !isAuditor()
+          && isValidEvento(incoming())
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && (
+            get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isOperationalStaff()
+          );
+        allow update, delete: if false;
+      }
+
+      match /mensajes/{mensajeId} {
+        allow get: if isSignedIn() && isValidId(convivenciaId) && isValidId(mensajeId) && (
+          get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow list: if isSignedIn() && isValidId(convivenciaId) && (
+          resource.data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow create: if isEmailVerified() && isValidId(convivenciaId) && isValidId(mensajeId)
+          && !isAuditor()
+          && isValidMensaje(incoming())
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && (
+            get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isOperationalStaff()
+          );
+        allow update, delete: if false;
+      }
+
+      match /notarias/{notariaId} {
+        allow get: if isSignedIn() && isValidId(convivenciaId) && isValidId(notariaId) && (
+          get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow list: if isSignedIn() && isValidId(convivenciaId) && (
+          resource.data.ownerId == request.auth.uid || isAdmin() || isAuditor() || isOperationalStaff()
+        );
+        allow create: if isEmailVerified() && isValidId(convivenciaId) && isValidId(notariaId)
+          && !isAuditor()
+          && isValidNotariaCsg(incoming())
+          && incoming().ownerId == request.auth.uid
+          && incoming().createdAt == request.time
+          && (
+            get(/databases/$(database)/documents/convivencias/$(convivenciaId)).data.ownerId == request.auth.uid || isAdmin() || isOperationalStaff()
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    match /logs_auditoria/{logId} {
+      allow get: if isSignedIn() && isValidId(logId) && (
+        existing().ownerId == request.auth.uid || isAdmin() || isAuditor()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || isAdmin() || isAuditor()
+      );
+      allow create: if isEmailVerified() && isValidId(logId)
+        && !isAuditor()
+        && isValidLogWorm(incoming())
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,370 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil autenticado del usuario institucional o participante con rol operativo activo en vista.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "activeViewRole": {
+          "type": "string",
+          "enum": ["JUEZ", "MONITORISTA", "CUSTODIO", "CONVIVIENTE", "AUDITOR", "ADMIN"]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "activeViewRole", "createdAt", "updatedAt"]
+    },
+    "RoleAssignment": {
+      "title": "RoleAssignment",
+      "description": "Asignación autoritativa RBAC administrada exclusivamente por S-ADMIN para controlar accesos y segregación de funciones.",
+      "type": "object",
+      "properties": {
+        "targetUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetEmail": { "type": "string", "format": "email", "maxLength": 160 },
+        "role": {
+          "type": "string",
+          "enum": ["REPORTERO", "MONITORISTA", "JUEZ", "AUDITOR", "ADMIN"]
+        },
+        "cecofamSede": {
+          "type": "string",
+          "enum": ["Ecatepec", "Toluca", "Nicolás Romero", "Ixtapaluca", "TODAS"]
+        },
+        "active": { "type": "boolean" },
+        "assignedByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetUid", "targetEmail", "role", "cecofamSede", "active", "assignedByUid", "createdAt", "updatedAt"]
+    },
+    "AuditorRegistry": {
+      "title": "AuditorRegistry",
+      "description": "Registro confiable de auditores autorizados para consulta de trazabilidad operativa de solo lectura.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "active": { "type": "boolean" },
+        "grantedByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "active", "grantedByUid", "createdAt"]
+    },
+    "ProtocolConfig": {
+      "title": "ProtocolConfig",
+      "description": "Parámetros normativos y operativos del Protocolo de Accesibilidad y Convivencia gestionados por S-ADMIN.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string", "minLength": 2, "maxLength": 32 },
+        "cecofamSede": {
+          "type": "string",
+          "enum": ["Ecatepec", "Toluca", "Nicolás Romero", "Ixtapaluca", "GLOBAL"]
+        },
+        "maxUavBudget": { "type": "integer" },
+        "gpsLossThresholdSec": { "type": "integer" },
+        "t5mWindowSec": { "type": "integer" },
+        "fBlurRadiusPx": { "type": "integer" },
+        "accessibilityMode": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "active": { "type": "boolean" },
+        "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "version",
+        "cecofamSede",
+        "maxUavBudget",
+        "gpsLossThresholdSec",
+        "t5mWindowSec",
+        "fBlurRadiusPx",
+        "accessibilityMode",
+        "active",
+        "updatedByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "IncidentReport": {
+      "title": "IncidentReport",
+      "description": "Incidencia operativa o de accesibilidad reportada sobre un expediente PACTO con flujo de atención y auditoría.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "convivenciaId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "folioFisico": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^[0-9]{8}$" },
+        "cecofamSede": {
+          "type": "string",
+          "enum": ["Ecatepec", "Toluca", "Nicolás Romero", "Ixtapaluca"]
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "ACCESIBILIDAD_TECNICA",
+            "DESVIACION_GEOCERCA",
+            "FALLO_BIOMETRICO_RAM",
+            "HOSTILIDAD_PROXY",
+            "EMERGENCIA_C5"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["BAJA", "MEDIA", "ALTA", "CRITICA"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["REPORTADO", "EN_REVISION", "RESUELTO", "CERRADO_AUDITADO"]
+        },
+        "title": { "type": "string", "minLength": 4, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 8, "maxLength": 800 },
+        "evidenceHash": { "type": "string", "minLength": 32, "maxLength": 128 },
+        "resolutionNote": { "type": "string", "maxLength": 500 },
+        "assignedAdminUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "reporterId",
+        "convivenciaId",
+        "folioFisico",
+        "cecofamSede",
+        "category",
+        "severity",
+        "status",
+        "title",
+        "description",
+        "evidenceHash",
+        "resolutionNote",
+        "assignedAdminUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ConvivenciaSession": {
+      "title": "ConvivenciaSession",
+      "description": "Expediente operativo de convivencia extramuros bajo la máquina de estados M_PACTO.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "folioFisico": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^[0-9]{8}$" },
+        "folioHash": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "kJuez": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^[A-Z0-9]{5}$" },
+        "cecofamSede": {
+          "type": "string",
+          "enum": ["Ecatepec", "Toluca", "Nicolás Romero", "Ixtapaluca"]
+        },
+        "fsmState": {
+          "type": "string",
+          "enum": [
+            "STATE_0_INGESTA",
+            "STATE_1_ONBOARDING",
+            "STATE_1_TIMEOUT",
+            "STATE_2_ACTIVE",
+            "STATE_3_TRIAGE",
+            "STATE_4_CLOSED"
+          ]
+        },
+        "semaphore": {
+          "type": "string",
+          "enum": ["VERDE", "AMARILLO", "ROJO", "PRC"]
+        },
+        "uavCost": { "type": "integer" },
+        "ageGroup": {
+          "type": "string",
+          "enum": ["PRIMERA_INFANCIA", "ESCOLAR", "ADOLESCENTE"]
+        },
+        "iArrScore": { "type": "number" },
+        "exclusionsClear": { "type": "boolean" },
+        "ccpSigned": { "type": "boolean" },
+        "tviVerified": { "type": "boolean" },
+        "tavVerified": { "type": "boolean" },
+        "t5mStartMs": { "type": "integer" },
+        "durationMinutes": { "type": "integer" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "signalDbm": { "type": "integer" },
+        "batteryPct": { "type": "integer" },
+        "inShadowZone": { "type": "boolean" },
+        "rpaAlertActive": { "type": "boolean" },
+        "gpsLossSeconds": { "type": "integer" },
+        "chatAttempts": { "type": "integer" },
+        "pvBlaFailures": { "type": "integer" },
+        "prcActivated": { "type": "boolean" },
+        "minorClothingDesc": { "type": "string", "maxLength": 240 },
+        "vehicleDesc": { "type": "string", "maxLength": 160 },
+        "closingNote": { "type": "string", "maxLength": 500 },
+        "sealHash": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "folioFisico",
+        "folioHash",
+        "kJuez",
+        "cecofamSede",
+        "fsmState",
+        "semaphore",
+        "uavCost",
+        "ageGroup",
+        "iArrScore",
+        "exclusionsClear",
+        "ccpSigned",
+        "tviVerified",
+        "tavVerified",
+        "t5mStartMs",
+        "durationMinutes",
+        "lat",
+        "lng",
+        "signalDbm",
+        "batteryPct",
+        "inShadowZone",
+        "rpaAlertActive",
+        "gpsLossSeconds",
+        "chatAttempts",
+        "pvBlaFailures",
+        "prcActivated",
+        "minorClothingDesc",
+        "vehicleDesc",
+        "closingNote",
+        "sealHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "EventoBitacora": {
+      "title": "EventoBitacora",
+      "description": "Evento cronológico inmutable clasificado para el Reporte R-MON Filtro Tri-Color.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "category": { "type": "string", "enum": ["MORADO", "AZUL_CLARO", "CREMA"] },
+        "eventType": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "summary": { "type": "string", "minLength": 2, "maxLength": 600 },
+        "hashSha3": { "type": "string", "minLength": 32, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "category", "eventType", "summary", "hashSha3", "createdAt"]
+    },
+    "MensajeProxy": {
+      "title": "MensajeProxy",
+      "description": "Mensaje procesado por el Proxy de Chat Asimétrico con sanitización lexicográfica.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "senderRole": { "type": "string", "enum": ["CUSTODIO", "CONVIVIENTE", "MONITORISTA"] },
+        "rawPreview": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "cleanContent": { "type": "string", "maxLength": 400 },
+        "status": {
+          "type": "string",
+          "enum": ["RECHAZADO_HOSTIL", "SANITIZADO_RETRANSMITIDO", "LOGISTICO_LIMPIO"]
+        },
+        "hostileTokensCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "senderRole", "rawPreview", "cleanContent", "status", "hostileTokensCount", "createdAt"]
+    },
+    "LogAuditoriaWorm": {
+      "title": "LogAuditoriaWorm",
+      "description": "Registro WORM encadenado estilo Merkle Ledger para auditoría de accesos institucionales y trazabilidad operativa.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorRole": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "folioFisico": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^[0-9]{8}$" },
+        "action": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "justification": { "type": "string", "minLength": 4, "maxLength": 300 },
+        "prevHash": { "type": "string", "minLength": 16, "maxLength": 128 },
+        "currentHash": { "type": "string", "minLength": 32, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "actorRole", "folioFisico", "action", "justification", "prevHash", "currentHash", "createdAt"]
+    },
+    "NotariaCsgRecord": {
+      "title": "NotariaCsgRecord",
+      "description": "Sello criptográfico CSG (SHA3-256 + Ed25519 encadenado) asociado a documentos Google Docs, actas o archivos de un expediente PACTO.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "folioFisico": { "type": "string", "minLength": 8, "maxLength": 8, "pattern": "^[0-9]{8}$" },
+        "sourceType": { "type": "string", "enum": ["GOOGLE_DOC", "GOOGLE_TASK_ACTA", "ARCHIVO_LOCAL"] },
+        "sourceRefId": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "sourceTitle": { "type": "string", "minLength": 1, "maxLength": 180 },
+        "docUrl": { "type": "string", "maxLength": 400 },
+        "eventoId": { "type": "string", "minLength": 4, "maxLength": 128 },
+        "hashContenido": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "cuerpoHash": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "selloAnterior": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "firmantePub": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "notarioPub": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-fA-F0-9]{64}$" },
+        "firmaNotario": { "type": "string", "minLength": 128, "maxLength": 128, "pattern": "^[a-fA-F0-9]{128}$" },
+        "aceptado": { "type": "boolean" },
+        "csgTimestamp": { "type": "integer" },
+        "actorRole": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "ownerId",
+        "folioFisico",
+        "sourceType",
+        "sourceRefId",
+        "sourceTitle",
+        "docUrl",
+        "eventoId",
+        "hashContenido",
+        "cuerpoHash",
+        "selloAnterior",
+        "firmantePub",
+        "notarioPub",
+        "firmaNotario",
+        "aceptado",
+        "csgTimestamp",
+        "actorRole",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Perfiles privados de usuario protegidos por propiedad estricta o rol de administrador."
+    },
+    "/role_assignments/{userId}": {
+      "schema": { "$ref": "#/entities/RoleAssignment" },
+      "description": "Asignaciones oficiales RBAC gestionadas exclusivamente por S-ADMIN."
+    },
+    "/auditors/{userId}": {
+      "schema": { "$ref": "#/entities/AuditorRegistry" },
+      "description": "Registro de auditores autorizados con acceso de solo lectura a trazabilidad operativa."
+    },
+    "/protocol_configs/{configId}": {
+      "schema": { "$ref": "#/entities/ProtocolConfig" },
+      "description": "Configuraciones versionadas del Protocolo de Accesibilidad y Convivencia gestionadas por administradores."
+    },
+    "/incidentes/{incidenteId}": {
+      "schema": { "$ref": "#/entities/IncidentReport" },
+      "description": "Reportes de incidentes operativos y de accesibilidad con trazabilidad desde creación hasta cierre auditado."
+    },
+    "/convivencias/{convivenciaId}": {
+      "schema": { "$ref": "#/entities/ConvivenciaSession" },
+      "description": "Sesiones de convivencia PACTO gestionadas por la FSM M_PACTO."
+    },
+    "/convivencias/{convivenciaId}/eventos/{eventoId}": {
+      "schema": { "$ref": "#/entities/EventoBitacora" },
+      "description": "Subcolección cronológica de hitos R-MON (Morado, Azul Claro, Crema)."
+    },
+    "/convivencias/{convivenciaId}/mensajes/{mensajeId}": {
+      "schema": { "$ref": "#/entities/MensajeProxy" },
+      "description": "Subcolección de mensajes del Proxy Asimétrico sin contacto directo P2P."
+    },
+    "/convivencias/{convivenciaId}/notarias/{notariaId}": {
+      "schema": { "$ref": "#/entities/NotariaCsgRecord" },
+      "description": "Subcolección append-only de sellos criptográficos CSG sobre documentos Google Docs, actas y archivos locales del expediente."
+    },
+    "/logs_auditoria/{logId}": {
+      "schema": { "$ref": "#/entities/LogAuditoriaWorm" },
+      "description": "Bitácora inmutable WORM de interacciones institucionales."
+    }
+  }
+}

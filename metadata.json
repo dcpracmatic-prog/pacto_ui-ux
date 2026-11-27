@@ -1,0 +1,6 @@
+{
+  "name": "Protocolo PACTO — Trazabilidad Convivencial",
+  "description": "Plataforma institucional del Protocolo de Accesibilidad y Convivencia con Trazabilidad Operativa (PACTO / DEMOFAM): cribado paramétrico A-PACTO, máquina de estados M_PACTO, telemetría A-RPA/M-MTS, proxy de chat asimétrico, bóveda K-JUEZ y simulación estocástica de Monte Carlo.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
